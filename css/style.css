@@ -1,0 +1,221 @@
+@charset 'UTF-8';
+@font-face{font-family:'FontAwesome';src:url('font/fontawesome-webfont.eot?v=4.0.1');src:url('font/fontawesome-webfont.eot?#iefix&v=4.0.1') format('embedded-opentype'),url('font/fontawesome-webfont.woff?v=4.0.1') format('woff'),url('font/fontawesome-webfont.ttf?v=4.0.1') format('truetype'),url('font/fontawesome-webfont.svg?v=4.0.1#fontawesomeregular') format('svg');font-weight:normal;font-style:normal}
+
+
+body
+{
+	margin: 0;
+	padding: 0em;
+	line-height: 2em;
+	font-family: 'Open Sans', sans-serif;
+	font-size: 10pt;
+	color: #ffffff;
+}
+
+body, #skel-panels-pageWrapper
+{
+	background: url(../images/banner.jpg) no-repeat center top fixed;
+    color: #ffffff;
+}
+
+h1, h2, h3 {
+	margin: 0;
+	padding: 0;
+	font-weight: 300;
+	color: #ffffff;
+}
+
+h2
+{
+	letter-spacing: 1.5px;
+	font-size: 2.2em;
+}
+
+p, ol, ul
+{
+	margin-top: 1em;
+	
+}
+
+p
+{
+	letter-spacing: 2.5px;
+	font-size: 1.02em;
+}
+
+a
+{
+	text-decoration: underline;
+	color: #ffffff;
+	
+}
+
+a:hover
+{
+	text-decoration: none;
+}
+
+	
+/* Header Tabs Style*/
+
+
+	.button
+	{
+		position: relative;
+		display: inline-block;
+		padding: 0.8em 2em;
+		border-radius: 4px;
+		text-decoration: none;
+		font-size: 1.2em;
+		font-weight: 300;
+		color: #FFF !important;
+		-moz-transition: color 0.35s ease-in-out, background-color 0.35s ease-in-out;
+		-webkit-transition: color 0.35s ease-in-out, background-color 0.35s ease-in-out;
+		-o-transition: color 0.35s ease-in-out, background-color 0.35s ease-in-out;
+		-ms-transition: color 0.35s ease-in-out, background-color 0.35s ease-in-out;
+		transition: color 0.35s ease-in-out, background-color 0.35s ease-in-out;
+		text-align: center;
+	}
+
+	.button:hover
+	{
+		background: #ff1d1d;
+		color: #FFF !important;
+	}
+
+	.button-alt
+	{
+		padding: 0.9em 2em;
+		font-size: 1.5em;
+	}
+
+	.button2
+	{
+		position: relative;
+		display: inline-block;
+		padding: 0.8em 2em;
+		border-radius: 4px;
+		background: #ffffff;
+		text-decoration: none;
+		font-size: 1.2em;
+		font-weight: 300;
+		color: rgb(0, 0, 0) !important;
+		-moz-transition: color 0.35s ease-in-out, background-color 0.35s ease-in-out;
+		-webkit-transition: color 0.35s ease-in-out, background-color 0.35s ease-in-out;
+		-o-transition: color 0.35s ease-in-out, background-color 0.35s ease-in-out;
+		-ms-transition: color 0.35s ease-in-out, background-color 0.35s ease-in-out;
+		transition: color 0.35s ease-in-out, background-color 0.35s ease-in-out;
+		text-align: center;
+	}
+
+	.button2:hover
+	{
+		background: #ff1d1d;
+		color: #FFF !important;
+	}
+
+	.button2-alt
+	{
+		padding: 0.4em 0.8em;
+		font-size: 2.0em;
+	}
+
+/* Header */
+
+	#header-wrapper
+	{
+		background: url(../images/banner.jpg) no-repeat center top;
+		background-size: cover;
+		position: relative;
+	}
+	
+	#header-wrapper:before
+	{
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 100%;
+		height: 100%;
+	}
+	
+	#header {
+		position: relative;
+		z-index: 1;
+	}
+	
+	header
+	{
+		margin-bottom: 3em;
+		position: relative;
+	}
+
+	header h2
+	{
+		display: block;
+		margin: 0;
+		padding: 0;
+		font-weight: 290;
+
+	}
+
+/* Banner */
+
+	#banner
+	{
+		overflow: hidden;
+		padding: 10em 0em;
+		text-align: center;
+		z-index: 1;
+		position: relative;
+	}
+
+	#banner header h2
+	{
+		text-transform: uppercase;
+		font-size: 3em;
+		color: #FFF;
+	}
+
+	#banner header .byline
+	{
+		padding: 0em 5em;
+		font-size: 1.70em;
+	}
+	
+	#banner .button
+	{
+		margin-top: 1em;
+	}
+
+	
+/* Two Column Area */
+
+	#two-column
+	{
+		overflow: hidden;
+		margin-top: 4em;
+		padding: 4em 0em 0em 0em;
+		border-top: 1px solid #212124;
+	}
+
+/* Featured Area */
+
+	#featured-wrapper
+	{
+		position: relative;
+		padding: 6em 0em;
+		background: #0c0e0f;
+		text-align: center;
+	}
+	
+	#featured-wrapper .button
+	{
+		margin-top: 2em;
+	}
+
+	#featured-content img
+	{
+		float: left;
+		margin: 0.85em 2em 0em 0em;
+	}

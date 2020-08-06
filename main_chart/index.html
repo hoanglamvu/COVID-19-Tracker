@@ -1,0 +1,1126 @@
+<!doctype html>
+<html>
+<head>
+<title>Live COVID-19 Chart</title>
+<meta name="description"
+ content="Interactive chart of coronavirus cases.  Compare states, counties, and countries worldwide.">
+<meta property="og:url" content="https://covid19chart.org/">
+<meta property="og:title"
+ content="Live COVID-19 Chart" />
+<meta property="og:description"
+ content="Interactive chart of coronavirus cases.  Compare states, counties, and countries worldwide." />
+<meta property="og:image"
+ content="https://covid19chart.org/image/covid19chart_site_image.png"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!--
+   Library dependencies, loaded from various CDNs.
+ -->
+<link href="https://fonts.googleapis.com/css?family=Open+Sans&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.js" integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.1.0/papaparse.js" integrity="sha256-iAuxnf8Cwr0yrQkpf6oQG4PaL/oVmoer6V/RfX2KQws=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.min.js" integrity="sha256-VeNaFBVDhoX3H+gJ37DpT/nTuZTdjYro9yBruHjVmoQ=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.11.4/chartist.js" integrity="sha256-Nyn8cCQAr3TDltwQENC7vbHQaLKy9xuq8xon2BNZgPk=" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.11.4/chartist.min.css" integrity="sha256-seGyqLj5T52Hx8W7/YTajtNXGXQf+IksfkcaKGoTkbY=" crossorigin="anonymous" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.11/vue.min.js" integrity="sha256-ngFW3UnAN0Tnm76mDuu7uUtYEcG3G5H1+zioJw3t+68=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue-router/3.1.3/vue-router.min.js" integrity="sha256-r/vPIUvTobCpYZsMmvU7HM58cNd4D6/vdICqDFapV7Y=" crossorigin="anonymous"></script>
+<script>
+process = null; // process variable is needed by simple-suggest.
+</script>
+<script src="https://cdn.jsdelivr.net/npm/vue-simple-suggest@1.10.1/dist/iife.js" integrity="sha256-06eSh+iu/R5lRkwjJYl1Kddxg3EFmK4F2b9dWrVYEi4=" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vue-simple-suggest@1.10.1/dist/styles.css" integrity="sha256-50OeaRwCtPG/05g4KvaNeZZQEU95DqVIuqAZTx+GXHA=" crossorigin="anonymous">
+<script>
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chartist-plugin-axistitle@0.0.7/dist/chartist-plugin-axistitle.min.js" integrity="sha256-prApUlf6GL5TScu+1fzXL6UDmTFLl9v2Bsk57h4zlK8=" crossorigin="anonymous"></script>
+<!--
+  Customized dependencies.
+-->
+<script src="lib/chartist-plugin-tooltip.js"></script> <!-- single label -->
+<script src="lib/chartist-plugin-pointlabels.js"></script> <!-- single label -->
+<script src="lib/chartist-plugin-legend.js"></script> <!-- custom clicks -->
+<script src="lib/chartist-logaxis.js"></script> <!-- packaged standalone -->
+<script src="lib/chartist-print.js"></script> <!-- relayout when printing -->
+<script src="lib/load_csse.js?v=7"></script> <!-- JHU CSSE loader -->
+<script src="lib/load_cds.js?v=2"></script> <!-- JHU CSSE loader -->
+<script src="lib/population.js"></script> <!-- population per region -->
+<script src="lib/utils.js"></script> <!-- Date and csv utilities -->
+<script src="lib/usa_state_list.js"></script> <!-- translating abbrevs -->
+<script src="lib/fips_counties.js"></script>
+<script src="lib/countries.js"></script>
+<link rel="stylesheet" href="lib/select.css"> <!-- mobile friendly select -->
+<link rel="stylesheet" href="lib/custom-chart.css"> <!-- colors etc -->
+<style>
+[v-cloak] { display: none }
+body { background: #FFF1E3; color: #333;
+  font-family: 'Open Sans', sans-serif; font-size: 10pt; }
+h1 { font-size: 14pt; margin-top: 8px; }
+.buttonrow { text-align: center; }
+#app .vue-simple-suggest.designed .input-wrapper input {
+  margin: 2px 0;
+  padding: 2px 8px;
+  font-size: 10pt;
+}
+#app .vue-simple-suggest {
+  text-align: left;
+}
+#app .vue-simple-suggest.designed .suggestions {
+  top: 100%;
+}
+select { margin-top: 1px; margin-bottom: 1px; }
+@media only screen and (max-width:799px) {
+  .ct-line { stroke-width: 2px; }
+  .ct-point { stroke-width: 5px; }
+}
+@media only screen and (min-width:800px) {
+  .pane-menu { display: inline-block; width: 27%; }
+  .pane-chart { display: inline-block; width: 72%; float: right; }
+  .ct-line { stroke-width: 3px; }
+  .ct-point { stroke-width: 8px; }
+}
+@media only print {
+  .pane-chart { width: 100% }
+  body { background: none; }
+}
+.bare .pane-menu { display: none; }
+.bare .pane-credit { display: none; }
+.bare .pane-chart { width: 100% }
+.searchline { display: flex; }
+.searchline .vue-simple-suggest{ flex-grow: 1; }
+.searchline button { margin: 2px 5px; height: 22px; vertical-align: bottom;
+  background-image: linear-gradient(to bottom, #fff 0%,#e5e5e5 100%);
+  border: 1px solid #aaa;
+  border-radius: 0.5em;
+  box-shadow: 0 1px 0 1px rgba(0,0,0,.04);
+}
+</style>
+</head>
+<body>
+<!--
+  User interface, using vue template idioms.
+-->
+<div id="app" v-cloak :class="chosen_bare == '1' ? ['bare'] : []">
+<link rel="stylesheet"
+ :href="'theme/' + chosen_theme.replace(/[^A-Za-z]/, '') + '.css'">
+<form class="pane-menu" autocomplete="none">
+<h1>{{ chosen_domain == 'US' ? 'USA' :
+       chosen_domain == 'Intl' ? 'International' : 'Local' }}
+COVID-19 Live <nobr>Chart <span v-if="chosen_advanced == '1'">API</span
+>
+</nobr></h1>
+<p><span v-if="parseInt(chosen_top) > 0">Showing {{ chosen_top }}
+{{ chosen_domain == 'US' ? 'states' :
+   chosen_domain == 'Intl' ? 'countries outside China' :
+   'localities in ' + chosen_domain }}
+with highest numbers.</span>
+Compare other countries, states, and counties by searching below.
+Click on the colored squares to focus on a locality.
+Hover on points for specific numbers.
+Data are from
+<a v-if="data_feed_name == 'cds'"
+href="https://coronadatascraper.com/">coronadatascraper.com</a>
+<a v-else
+href="https://github.com/CSSEGISandData/COVID-19/">Johns Hopkins CSSE</a>.
+
+</p>
+<div style="text-align:center" class="buttonrow">
+<select v-model="chosen_domain" class="select-css">
+  <option v-for="option in domain_choices" v-bind:value="option">
+    {{ option }}
+  </option>
+</select>
+<select v-model="chosen_series" class="select-css">
+  <option v-for="option in series_choices" v-bind:value="option">
+    {{ option }}
+  </option>
+</select>
+<select v-model="chosen_stat" class="select-css">
+  <option v-for="option in stat_choices" v-bind:value="option">
+    {{ option }}
+  </option>
+</select>
+<nobr><select v-model="chosen_scale" class="select-css">
+  <option v-for="option in scale_choices" v-bind:value="option">
+    {{ option }}
+  </option>
+</select>
+<select v-model="chosen_norm" class="select-css">
+  <option v-for="option in norm_choices" v-bind:value="option">
+    {{ option == 'none' ? 'norm' : '/' + option}}
+  </option>
+</select>
+<select v-model="chosen_start" class="select-css">
+  <option v-for="option in start_choices" v-bind:value="option">
+    {{ option }}
+  </option>
+</select></nobr>
+
+</div>
+</form
+><div id="chart" :class="['pane-chart', 'ct-chart', ratio_class]"></div
+><div class="pane-credit">
+<div v-if="chosen_advanced == '1'">
+<p>
+Customized charts are directly linkable by URL.  URL parameters can be edited directly, or in the form below.
+</p>
+<table>
+<tr><td>Domain:</td><td><input v-model.lazy="chosen_domain"> (US/Intl)</td></tr>
+<tr><td>Series:</td><td><input v-model.lazy="chosen_series"> (confirmed/deaths)</td></tr>
+<tr><td>Stat:</td><td><input v-model.lazy="chosen_stat"> (totals/daily/7day/growth)</td></tr>
+<tr><td>Scale:</td><td><input v-model.lazy="chosen_scale"> (linear/log10)</td></tr>
+<tr><td>Norm:</td><td><input v-model.lazy="chosen_norm"> (none/first/pop)</td></tr>
+<tr><td>Start:</td><td><input v-model.lazy="chosen_start"> (>=num, or m/d/y)</td></tr>
+<tr><td>Top:</td><td><input v-model.lazy="chosen_top"> (integer)</td></tr>
+<tr><td>Include:</td><td><input v-model.lazy="chosen_include"> (';' between states)</td></tr>
+<tr><td>Select:</td><td><input v-model.lazy="chosen_select"> (';' between states)</td></tr>
+<tr><td>Theme:</td><td><input v-model.lazy="chosen_theme"> (white/dark/paper)</td></tr>
+<tr><td>Ratio:</td><td><input v-model.lazy="chosen_ratio"> (3/4, or <a href="https://github.com/gionkunz/chartist-js/blob/8ae511b85956d6f93f38619d85bc045aa51bcf2e/site/styles/modules/_scale.scss#L1-L16">octave...</a>)</td></tr>
+<tr><td>Advanced:</td><td> <input v-model.lazy="chosen_advanced"> (1 or 0)</td></tr>
+<tr><td>Bare:</td><td> <input v-model.lazy="chosen_bare"> (1 or 0)</td></tr>
+<tr><td colspan=2">
+Bare chart embed code:<br>
+<textarea style="width:220px;height:40px;word-wrap:break-word;word-break:break-all;white-space:pre-wrap" readonly onclick="this.focus();this.select();">
+&lt;iframe width="500" height="388" frameborder="0" src="{{ make_url({bare:1}) }}"></iframe>
+</textarea>
+</td></tr>
+</table>
+</div>
+<div v-else>
+
+</div></div></body>
+<!--
+  Data loading and user interface code.  Main entrypoint at the end.
+-->
+<script>
+//////////////////////////////////////////////////////////////////////
+// Globals - exposing these globals is useful for debugging.
+//////////////////////////////////////////////////////////////////////
+var data_feed_name = location.href.indexOf('feed=cds') < 0 ? 'csse' : 'cds';
+var csse = null,   // Cleaned data loaded from csse.
+    chart = null,  // The main object, Chartist object.
+    theapp = null, // Main application controller, Vue object.
+    all_localities = [];
+
+//////////////////////////////////////////////////////////////////////
+// By-day summarization.
+// Some days the source data is broken out by-county and other days
+// by-state.  This function sums time series across rows based on
+// function filters for state and country strings; and get_state_data
+// applies a rule for consolidating U.S. state data that is coded
+// as either "County Name, ST' or "State Name".
+//////////////////////////////////////////////////////////////////////
+function aggregate_level(row, aggregate_i, state_i, admin_i) {
+  // For CSSE we need to sum up every matching row.
+  if (aggregate_i < 0) { return 1; }
+  // For CDS we need to sum up only the highest-level aggregate we see.
+  if (admin_i >= 0 && row[admin_i]) { return 3; } // admin
+  if (state_i >= 0 && row[state_i]) { return 2; } // state
+  return 1; // country
+}
+function rollup_ts(series, filter) {
+  var names = series[0],
+    fips_i = fieldnum(names, 'fips'),
+    admin_i = fieldnum(names, 'admin'), // OR county
+    state_i = fieldnum(names, 'state'),
+    country_i = fieldnum(names, 'country'),
+    aggregate_i = fieldnum(names, 'aggregate'),
+    fips_i = fieldnum(names, 'fips'),
+    ts_i = first_date_field(names),
+    ts_names = names.slice(ts_i),
+    totals = Array(ts_names.length),
+    cur_agg = null;
+  for (var row of series.slice(1)) {
+    if (!filter(row[country_i], row[state_i], row[admin_i], row[fips_i])) {
+      continue;
+    }
+    var agg = aggregate_level(row, aggregate_i, state_i, admin_i);
+    if (!cur_agg || agg < cur_agg) {
+       _.fill(totals, 0); cur_agg = agg;
+    }
+    if (agg != cur_agg) { continue; }
+    for (var i = ts_i; i < names.length; ++i) {
+      totals[i - ts_i] += (isNaN(row[i]) || !row[i] ? 0 : parseInt(row[i]));
+    }
+  }
+  return [ts_names, totals];
+}
+function rollup_multi_ts(series, key_function) {
+  var names = series[0],
+    fips_i = fieldnum(names, 'fips'),
+    admin_i = fieldnum(names, 'admin'),
+    state_i = fieldnum(names, 'state'),
+    country_i = fieldnum(names, 'country'),
+    aggregate_i = fieldnum(names, 'aggregate'),
+    ts_i = first_date_field(names),
+    ts_names = names.slice(ts_i),
+    all_totals = {},
+    all_agg = {};
+  for (var row of series.slice(1)) {
+    var keys = key_function(row[country_i], row[state_i], row[admin_i],
+      row[fips_i]);
+    var agg = aggregate_level(row, aggregate_i, state_i, admin_i);
+    _.forEach(keys, key => {
+      if (!all_totals.hasOwnProperty(key) ||
+          !all_agg[key] || agg < all_agg[key]) {
+        all_totals[key] = _.fill(Array(ts_names.length), 0);
+        all_agg[key] = agg;
+      }
+      if (agg == all_agg[key]) {
+        var sumrow = all_totals[key];
+        for (var i = ts_i; i < names.length; ++i) {
+          sumrow[i - ts_i] += (isNaN(row[i]) || !row[i] ? 0 : parseInt(row[i]));
+        }
+      }
+    });
+  }
+  return [ts_names, all_totals];
+}
+function norm_ctry(s) {
+  if (s && s.indexOf('*') >= 0) { s = s.replace('*', ''); }
+  if (s == 'Korea, South') return 'S Korea';
+  if (s == 'United Kingdom') return 'UK';
+  return s;
+}
+function all_countries(series) {
+  var names = series[0],
+    country_i = fieldnum(names, 'country');
+  var all = _.sortBy(_.uniq(series.slice(1).map(x => norm_ctry(x[country_i]))));
+  return _.filter(all, x => x && x != 'China');
+}
+function get_local_data(csse, field, locality) {
+  if (/,\s*[A-Z][A-Z]$/.exec(locality) && locality.slice(-2) in USA_STATES) {
+    return get_admin_data(csse, field, locality);
+  } else if (locality in USA_STATES) {
+    return get_state_data(csse, field, locality);
+  } else {
+    return get_national_data(csse, field, locality);
+  }
+}
+function get_admin_data(csse, field, locality) {
+  var dates, totals, deltas,
+    st_abbr = locality.slice(-2),
+    picked_state = USA_STATES[st_abbr],
+    picked_county = locality.slice(0,
+        locality.indexOf(',')).trim().toLowerCase();
+  [dates, totals] = rollup_ts(csse[field],
+    (country, state, admin) => { return country == 'US' &&
+       state && state == picked_state &&
+       admin && admin.toLowerCase().indexOf(picked_county) >= 0
+  });
+  return { dates: dates, totals: totals }
+}
+function get_state_data(csse, field, chosen_abbrev) {
+  var dates, totals, deltas;
+  [dates, totals] = rollup_ts(csse[field],
+    (country, state) => { return country == 'US' &&
+       state && (!chosen_abbrev ||
+         state == USA_STATES[chosen_abbrev] ||
+         state.replace(' (From Diamond Princess)', '')
+           .endsWith(chosen_abbrev))
+  });
+  return { dates: dates, totals: totals }
+}
+function get_national_data(csse, field, chosen_country) {
+  var dates, totals, deltas;
+  [dates, totals] = rollup_ts(csse[field],
+    (country, state) =>
+        (!chosen_country && (country != 'China') ||
+         (norm_ctry(country) == chosen_country)) );
+  return { dates: dates, totals: totals }
+}
+function get_multi_local_data(csse, field, localities) {
+  var requested = _.zipObject(localities, _.fill(Array(localities.length), 1));
+  function keys_for_row(country, state, admin, fips) {
+    var keys = [];
+    country = norm_ctry(country);
+    if (requested[country]) { keys.push(country); }
+    if (country == 'US') {
+      if (state) {
+        var abbrev = (USA_ABBREV[state] || state.match(/[A-Z]{2}$/) || '') + '';
+        if (requested[abbrev]) { keys.push(abbrev); }
+        var county = admin + ', ' + abbrev;
+        if (requested[county]) { keys.push(county); }
+      }
+    } else if (state) {
+      var locality = [state, country].join(', ');
+      if (requested[locality]) { keys.push(locality); }
+    }
+    return keys;
+  }
+  var dates, rollup;
+  [dates, rollup] = rollup_multi_ts(csse[field], keys_for_row);
+  return { dates: dates, seriesmap: rollup };
+}
+
+//////////////////////////////////////////////////////////////////////
+// Normalization.
+//////////////////////////////////////////////////////////////////////
+function apply_norm_rule(rule, extracted) {
+  if (rule == 'none') { return extracted; }
+  if (rule == 'first') {
+    extracted.series = extracted.series.map(s => {
+      var first_pos_val = s[1].slice(extracted.first_day)
+                              .filter(d => d && d.value > 0)[0].value || 1;
+      return [s[0], s[1].map(
+          d => d && _.defaults({
+            meta: d.meta + ' (' + d.value + ')',
+            value: d.value / first_pos_val
+          }, d))];
+    });
+  }
+  if (rule == 'pop') {
+    extracted.series = extracted.series
+      .filter(s => s[0] in POPULATION)
+      .map(s => [s[0], s[1].map(
+          d => d && _.defaults({
+            meta: d.meta + ' (' + d.value + ')',
+            value: +(d.value * 1000000 / POPULATION[s[0]]).toFixed(1)
+          }, d))])
+  }
+  return extracted;
+}
+
+//////////////////////////////////////////////////////////////////////
+// Start-day shifting.
+// To make different time series comparable, we can start them
+// all on the same day, or count "day 0" as the day when they
+// all pass a fixed threshold.  available_start_rules makes a
+// list of first-of-month days, and a subset of >=10, 100, 1000
+// rules that apply to the extracted series data; and apply_start_rule
+// shifts the extracted data according to a selected rule.
+//////////////////////////////////////////////////////////////////////
+function available_start_rules(extracted) {
+  var dates = extracted.labels;
+  var data_series = extracted.series;
+  var first_d = dates[0];
+  var other_d = dates.slice(1).filter(
+    x => !!/^\d+\/1\/\d+$/.exec(x));
+  var third_v = _.sortBy(data_series.map(
+      x => _.max(x[1].map(x => x.value))), x => -x)[2];
+  var gt_rules = [10, 30, 80, 100, 300, 1000].filter(
+      x => (x < third_v)).map(x => '>=' + x);
+  return _.concat([first_d], other_d, gt_rules);
+}
+function allowable_start_rule(extracted, rule) {
+  if (parse_date(rule)) {
+    var dates = extracted.labels;
+    return dates.filter(x => x == rule).length > 0;
+  }
+  if (rule.startsWith('>=')) {
+    var top_v = _.sortBy(extracted.series.map(
+        x => _.max(x[1].map(x => x.value))), x => -x)[0];
+    return top_v >= parseInt(rule.slice(2));
+  }
+  return false;
+}
+function pad_array(a, pad_count) {
+  return _.concat(new Array(pad_count), a);
+}
+function apply_start_rule(start, norm, extracted) {
+  var labels = extracted.labels;
+  var data_series = extracted.series;
+  if (start.startsWith('>=')) {
+    var first_day = labels.length;
+    var min_v = parseInt(start.slice(2));
+    function shift_series(loc, s, min) {
+      if (norm == 'pop') {
+        if (loc in POPULATION) {
+          min *= POPULATION[loc] / 1000000;
+        }
+      }
+      var first_i = _.findIndex(s, x => x != null && x.value >= min);
+      if (first_i >= 0) {
+        return [loc, _.concat(new Array(first_day - first_i), s)];
+      } else {
+        return [loc, null];
+      }
+    }
+    data_series = data_series.map(x => shift_series(x[0], x[1], min_v));
+    data_series = data_series.filter(x => !!x[1]);
+    labels = _.range(-first_day,
+                 _.max(data_series.map(x => x[1].length)) - first_day);
+    return {labels: labels, series: data_series, first_day: first_day};
+  }
+  if (parse_date(start)) {
+    var first_i = labels.indexOf(start);
+    return {labels: labels, series: data_series, first_day: first_i};
+  }
+  return {labels: labels, series: data_series};
+}
+
+//////////////////////////////////////////////////////////////////////
+// Data extraction.
+// Loaded data is summed, selected, filtered, and sorted here.
+// The user can choose a field (deaths/confirmed), a stat
+// (totals/detlas) and a scale (linear/log) (on a log scale,
+// nonpositive numbers are filtered out).  extract_data will
+// return an "extract" object which has a list of (date) labels
+// and a series which is a list of pairs ['ST', [day1, day2,...]]
+// of time series data, by state abbreviation.  Ten states
+// are included, based on the highest numbers on the last day.
+//////////////////////////////////////////////////////////////////////
+function extract_data(csse, domain, field, stat, topcount, include) {
+  if (!csse) return { labels: [], dates: [] };
+  domain = domain || 'US';
+  field = field || 'confirmed';
+  stat = stat || 'totals';
+  topcount = topcount == null ? 10 : topcount;
+  var get_global_data = (
+     domain == 'Intl' ?  get_national_data :
+     domain == 'US' ?  get_state_data :
+     _.partialRight(get_state_data, domain));
+  var global_data = get_global_data(csse, field);
+  var first_nz = _.findIndex(global_data.totals, i => i > 0);
+  var global_series = global_data.totals.slice(first_nz);
+  var dates = global_data.dates.slice(first_nz);
+  var localities = (domain == 'Intl' ?  all_countries(csse[field]) :
+        domain == 'US' ?  _.keys(USA_STATES) :
+        all_localities.filter(c => c.endsWith(', ' + domain)));
+  var state_series = _.mapValues(
+      get_multi_local_data(csse, field, localities).seriesmap,
+      v => v.slice(first_nz));
+  var top_states = _.toPairs(state_series)
+      .sort((x, y) => (score_series(stat, y[1])) - (score_series(stat, x[1])))
+      .filter(p => p[0].indexOf('Unassigned') < 0)
+      .slice(0, parseInt(topcount));
+  var included = _.fromPairs(top_states);
+  for (var inc of include.split(';')) {
+    if (inc && !included.hasOwnProperty(inc)) {
+      var extra = get_local_data(csse, field, inc).totals.slice(first_nz);
+      top_states.push([inc, extra])
+    }
+  }
+  /* We used to include US totals on by-state breakdown.
+  if (domain == 'US' && parseInt(topcount)) {
+    top_states.unshift([domain, global_series]);
+  }
+  */
+  var described_series = top_states.map(p => [p[0], p[1].map((x, i) =>
+     { return { meta: p[0] + ' ' + dates[i], value: x }; })]);
+  return {
+    labels: dates,
+    series: described_series
+  };
+}
+function yaxis_title(field, stat, scale, norm) {
+  var stat_desc =
+      stat == 'totals' ? 'Total cumulative ' :
+      stat == 'growth' ? 'Weekly new ' :
+      parse_delta(stat) == 1 ? 'Daily new ' :
+      parse_delta(stat) + '-day average of daily ';
+  var desc = stat_desc +
+             {confirmed: 'confirmed', deaths: 'deaths'}[field] +
+             {'first': ', / first day',
+              'pop': ' per million',
+              'none': ''}[norm] +
+             (scale && scale.startsWith('log') ? ' (log scale)' : '');
+  return desc;
+}
+function xaxis_title(field, stat, scale, norm, start) {
+  if (stat == 'growth') {
+    return yaxis_title(field, 'totals', scale, norm);
+  }
+  if (start.startsWith('>=')) {
+    if (norm == 'pop') {
+      return 'Days since ' + start.slice(2) + ' per million ' + field;
+    } else {
+      return 'Days since ' + start.slice(2) + 'th ' +
+         {confirmed: 'case', deaths: 'death'}[field];
+    }
+  }
+  return '';
+}
+
+//////////////////////////////////////////////////////////////////////
+// Plotting.
+// The extract data is plotted using chartist.js,
+// using the given scale.
+//////////////////////////////////////////////////////////////////////
+function plot_series(extract, stat, scale, norm, xaxis, yaxis,
+     select, updateSelect) {
+  scale = scale || 'log10';
+  if (chart) { chart.detach(); }
+  var isGrowthChart = (stat == 'growth');
+  if (parse_delta(stat)) {
+    // How many days back do we go to calculate the delta
+    const deltaInterval = parse_delta(stat);
+    extract.series = _.map(extract.series, p => [p[0], _.map(p[1], (d, i) => {
+      if (i == 0) { return null; }
+      var prevIndex = i - deltaInterval;
+      var cur = (d ? d.value : 0),
+          prev = (p[1][prevIndex] ? p[1][prevIndex].value : 0);
+      return _.defaults({value: (cur - prev) / deltaInterval}, d);
+    })]);
+  }
+  else if (isGrowthChart) {
+    // In this mode, We plot an x,y graph with x as the total count and 'y' as
+    // the weekly count (not the average for one day, unlike with 'deltas')
+    extract.series = _.map(extract.series, p => [p[0],_.map(p[1], (d, i) => {
+      var prevIndex = i - 7; // Use last week for 'x'
+      var cur = (d ? d.value : 0),
+          prev = (p[1][prevIndex] ? p[1][prevIndex].value : 0);
+      var point = _.defaults({ x: cur, y: (cur - prev) }, d);
+      delete point["value"]; // delete unwanted 'value' prop as we have x,y
+      return point;
+    })]);
+  }
+  if (scale.startsWith('log') || isGrowthChart) {
+    // When using log scale, we need to make sure we don't end up with entries
+    // that are missing their 'value' (or 'x/y') properties, as that breaks it
+    extract.series = _.map(extract.series, p => [p[0], _.map(p[1], d => {
+      return d && (d.value && d.value > 0 || d.x && d.x > 0 && d.y && d.y > 0)
+        ? d : null;
+    })]);
+  }
+  // Heuristic for making space for long legends.  Estimate number of
+  // characters that extend past the right edge.
+  var maxLegendNameExtension = _.max(extract.series.map(x =>
+      Math.max(2,   // min 2 chars.
+        x[0].length // actual characters, minus chars that fit inside plot...
+        - 200 *     // estimate plot as 200 chars wide.
+        (extract.labels.length - x[1].length) / (1 + extract.labels.length)
+      )));
+  var rightPadding = 8 + 6 * maxLegendNameExtension; // 6 points per char avg.
+  chart = new Chartist.Line('#chart', {
+    labels: extract.labels.slice(extract.first_day).map(x => {
+      if (!x) return x;
+      x = '' + x;
+      return x.replace(/(\d+)\/(\d+)\/20$/, '$1/$2');
+    }),
+    series: extract.series.map(x => x[1].slice(extract.first_day)),
+  }, {
+    lineSmooth: Chartist.Interpolation.none({
+      fillHoles: false
+    }),
+    classNames: {
+      gridMinor: 'ct-grid-minor'
+    },
+    axisX: {
+      labelInterpolationFnc: (value, index) => {
+        return isGrowthChart && scale.startsWith('log') ? value :
+          index % 7  === (parse_date(extract.labels[0]) ?
+            (extract.labels.length - 1) % 7 : 0) ? value : null;
+      },
+      type: isGrowthChart ? Chartist.AutoScaleAxis : undefined,
+      scale: isGrowthChart ? scale : 'linear',
+      onlyInteger: true,
+    },
+    axisY: {
+      showMinorGrid: true,
+      type: Chartist.AutoScaleAxis,
+      scale: scale,
+      onlyInteger: true,
+    },
+    chartPadding: {
+      top: 50,
+      bottom: xaxis ? 10 : 0,
+      left: 25,
+      right: rightPadding,
+    },
+    plugins: [
+      Chartist.plugins.tooltip({
+        valueTransform: (v => {
+          v = v.replace(/(\.\d{2})\d*$/, '$1');
+          if (norm == 'first') { v = v + '&times; first day'; }
+          if (norm == 'pop') { v = v + ' per million'; }
+          return v;
+        }),
+      }),
+      Chartist.plugins.ctAxisTitle({
+        axisX: {
+          axisTitle: xaxis,
+          axisClass: "ct-axis-title",
+          offset: { x: 0, y: 35 },
+          textAnchor: "middle"
+        },
+        axisY: {
+          axisTitle: yaxis,
+          axisClass: "ct-axis-title",
+          offset: { x: 0, y: 10 },
+          flipTitle: true
+        }
+      }),
+      // Must be last to not intefere with axis titles.
+      Chartist.plugins.legend({
+        legendNames: extract.series.map(x => x[0]),
+        legendState: !select ? [] : select.split(';'),
+        onClick: function(chart, e, legends) {
+          // Persist the state, and remember what domain it's for
+          updateSelect(legends.join(';'));
+        },
+      }),
+      Chartist.plugins.ctPointLabels({
+        textAnchor: 'left',
+        labelOffset: { x: 7, y: 3 },
+      })
+    ]
+  });
+  preparePrintChart(chart);
+  return chart;
+}
+
+// Chartist has a fixed set of 26 classes it cycles through (e.g. ct-series-z)
+var colors = [
+  "#d70206", "#f05b4f", "#f4c63d", "#d17905", "#453d3f", "#59922b", "#0544d3",
+  "#6b0392", "#dda458", "#eacf7d", "#86797d", "#b2c326", "#6188e2", "#a748ca",
+  "#a7f432", "#a83731", "#af6e4d", "#ff007c", "#fcd667", "#bfafb2", "#c46210",
+  "#4a646c", "#a6e7ff", "#ffd0b9", "#45a27d", "#3aa8c1"];
+
+// List of style elements we have created
+var styleNodes = [];
+
+// The current mapping from locality name to color index
+var currentLocalityToColorIndex = {}
+
+//////////////////////////////////////////////////////////////////////
+// Reorder the series to attempt to keep colors stable compared
+// to the previously displayed chart
+//////////////////////////////////////////////////////////////////////
+function reorderSeriesForColorStability(series) {
+  var localities = _.map(series, entry => entry[0]);
+
+  // Make use of the previous mapping, and start a new one for this round
+  var previousLocalityToColorIndex = currentLocalityToColorIndex;
+  currentLocalityToColorIndex = {}
+
+  // Keep track of color indices used in phase 1, to avoid them in phase 2
+  var colorIndicesInUse = {}
+
+  // Pass 1: for any current locality that was in the previous list, reuse
+  // its color and mark that color index as in-use. However, if the color
+  // index is higher than the total number of localities we're about to
+  // display, discard it
+  for (var i = 0; i < localities.length; i++) {
+    var locality = localities[i];
+
+    if (previousLocalityToColorIndex[locality] !== undefined
+        && previousLocalityToColorIndex[locality] < localities.length) {
+      currentLocalityToColorIndex[locality] =
+          previousLocalityToColorIndex[locality];
+      colorIndicesInUse[currentLocalityToColorIndex[locality]] = true;
+    }
+  }
+
+  // Pass 2: for any current locality that was *not* in the previous list,
+  // assign it the next available color index
+  for (var i = 0, colorIndex = 0; i < localities.length; i++) {
+    var locality = localities[i];
+
+    if (previousLocalityToColorIndex[locality] === undefined
+        || previousLocalityToColorIndex[locality] >= localities.length) {
+      // Skip any color indices that were used in pass 1
+      while (colorIndicesInUse[colorIndex]) colorIndex++;
+
+      currentLocalityToColorIndex[locality] = colorIndex++;
+    }
+  }
+
+  // Reorder the series so that each locality lands at the index that
+  // matches its color
+  return series.sort((s1, s2) =>
+    currentLocalityToColorIndex[s1[0]] - currentLocalityToColorIndex[s2[0]]);
+}
+
+//////////////////////////////////////////////////////////////////////
+// Dynamically create all styles, to make sure the ones from the chart
+// and from the legend match
+//////////////////////////////////////////////////////////////////////
+function createCssStyles() {
+  for(var i=0; i < colors.length; i++) {
+    // Using style injection technique from
+    // https://stackoverflow.com/a/1720483/111888
+    var style = document.createElement('style');
+    style.type = 'text/css';
+
+    // This overrides the css styles for both the chart and the
+    // legend (and adds a longer list) Legend uses number modifiers,
+    // while chart uses letter modifiers
+    style.innerHTML = `
+      .ct-legend .ct-series-${i}:before,
+      .ct-series-${String.fromCharCode(97+i)} .ct-line,
+      .ct-series-${String.fromCharCode(97+i)} .ct-point {
+        background-color: ${colors[i]};
+        border-color: ${colors[i]};
+        stroke: ${colors[i]};
+      }
+      .ct-chart:not(.ct-hover) .ct-legend .ct-series-${i},
+      .ct-chart:not(.ct-hover) .ct-series-${String.fromCharCode(97+i)} {
+        opacity: 1.0;
+        transition: opacity 0.5s ease;
+      }
+      .ct-hover:not(.ct-hover-on-${i}) .ct-legend .ct-series-${i} {
+        opacity: 0.5;
+      }
+      .ct-hover:not(.ct-hover-on-${i}) .ct-series-${String.fromCharCode(97+i)} {
+        opacity: 0.2;
+      }
+      .ct-hover.ct-hover-on-${i} .ct-series-${String.fromCharCode(97+i)} {
+        z-index: 10;
+      }
+      .ct-hover.ct-hover-on-${i}
+          .ct-series.ct-series-${String.fromCharCode(97+i)} text.ct-label {
+        font-weight: bold;
+        opacity: 1.0;
+      }`;
+    document.getElementsByTagName('head')[0].appendChild(style);
+  }
+}
+
+//////////////////////////////////////////////////////////////////////
+// Chartist aspect ratio classes.
+//////////////////////////////////////////////////////////////////////
+
+var RATIO_CHOICES = {
+  'square': '1/1',
+  'minor-second': '15/16',
+  'major-second': '8/9',
+  'minor-third': '5/6',
+  'major-third': '4/5',
+  'perfect-fourth': '3/4',
+  'perfect-fifth': '2/3',
+  'minor-sixth': '5/8',
+  'golden-section': '1/1.618',
+  'major-sixth': '3/5',
+  'minor-seventh': '9/16',
+  'major-seventh': '8/15',
+  'octave': '1/2',
+  'major-tenth': '2/5',
+  'major-eleventh': '3/8',
+  'major-twelfth': '1/3',
+  'double-octave': '1/4',
+};
+
+//////////////////////////////////////////////////////////////////////
+// selection.
+// The vue.js app is used to manage the user's selection of different
+// options.
+//////////////////////////////////////////////////////////////////////
+theapp = new Vue({
+  el: '#app',
+  router: new VueRouter(),
+  data: {
+    csse: null,
+    local_us_state: null, // Determined via geolocation.
+    available_localities: null,
+    data_feed_name: data_feed_name,
+    siteurl: window.location.protocol + '//' + window.location.host + '/',
+    series_choices: ['confirmed', 'deaths'], // 'recovered' seems incomplete.
+    stat_choices: ['totals', 'daily', '7day', 'growth'],
+    scale_choices: ['linear', 'log10'],
+    norm_choices: ['none', 'first', 'pop'],
+    added_locality: null,
+    visible_localities: null,
+    selectStateDomain: null // The domain that the saved state is for
+  },
+  updated: function() {
+    this.configure_suggest();
+  },
+  computed: {
+    domain_choices: function() {
+      var choices = ['Intl', 'US'], added = {};
+      function add(s) { if (!added[s]) { added[s] = 1; choices.push(s); } }
+      (this.visible_localities || []).forEach(s => {
+        if (USA_STATES.hasOwnProperty(s)) { add(s); }
+      });
+      if (USA_STATES.hasOwnProperty(this.chosen_domain)) {
+        add(this.chosen_domain);
+      }
+      if (this.local_us_state != null) {
+        add(this.local_us_state);
+      }
+      return choices;
+    },
+    start_choices: function() {
+      if (this.csse == null) { return ['1/1/20', '>=80', '>=1000']; }
+      var extract = this.extracted_data;
+      var choices = available_start_rules(extract);
+      if (this.chosen_start && choices.indexOf(this.chosen_start) < 0) {
+        if (allowable_start_rule(extract, this.chosen_start)) {
+          choices.unshift(this.chosen_start);
+        }
+      }
+      return choices;
+    },
+    extracted_data: function() {
+      return extract_data(this.csse, this.chosen_domain,
+          this.chosen_series, this.chosen_stat,
+          this.chosen_top, this.chosen_include);
+    },
+    ratio_class: function() {
+      if (this.chosen_ratio in RATIO_CHOICES) {
+        return 'ct-' + this.chosen_ratio;
+      }
+      var number = parse_frac(this.chosen_ratio);
+      if (number) {
+        var best = 'perfect-fourth', diff = Math.abs(number - 3/4);
+        for (var k in RATIO_CHOICES) {
+          var d = Math.abs(number - parse_frac(RATIO_CHOICES[k]));
+          if (d < diff) { best = k; diff = d; }
+        }
+        return 'ct-' + best;
+      }
+      return 'ct-perfect-fourth';
+    },
+    chosen_domain: url_property('domain', 'Intl'),
+    chosen_series: url_property('series', 'confirmed'),
+    chosen_stat: url_property('stat', 'totals'),
+    chosen_scale: url_property('scale', 'linear'),
+    chosen_norm: url_property('norm', 'none'),
+    chosen_start: url_property('start', '>=80'),
+    chosen_top: url_property('top', '10'),
+    chosen_include: url_property('include', ''),
+    chosen_select: url_property('select', ''),
+    chosen_theme: url_property('theme', 'dark'),
+    chosen_bare: url_property('bare', '0', true),
+    chosen_advanced: url_property('advanced', '0'),
+    chosen_ratio: url_property('ratio', 'perfect-fourth'),
+  },
+  watch: {
+    chosen_domain: function(val) {
+      // When the domain is chosen, always show the top-10 regions
+      // for that domain.
+      this.chosen_top = 10;
+      // If the previous selection equals the new domain, then erase it.
+      // Otherwise, keep the selection along to keep showing the
+      // selected localities compared to the new set of regions.
+      if (val == this.chosen_include ||
+          !this.chosen_include && val == this.chosen_select) {
+        this.chosen_include = '';
+        this.chosen_select = '';
+        currentLocalityToColorIndex = {};
+      }
+    },
+    extracted_data: function(val) { this.draw_chart(); },
+    chosen_start: function(val) { this.draw_chart(); },
+    chosen_scale: function(val) { this.draw_chart(); },
+  },
+  methods: {
+    draw_chart: _.debounce(function() {
+      var extract = this.extracted_data;
+      if (!allowable_start_rule(extract, this.chosen_start)) {
+        this.chosen_start = this.start_choices[0];
+      }
+      var shifted = apply_start_rule(
+          this.chosen_start, this.chosen_norm, extract);
+      var normalized = apply_norm_rule(this.chosen_norm, shifted);
+      var ordered = _.defaults({
+        series: reorderSeriesForColorStability(normalized.series)
+      }, shifted);
+      ordered.series.forEach(p => {
+        var lastPoint = _.last(p[1].filter(v => v && v.value > 0));
+        if (lastPoint) { lastPoint.pointLabel = p[0]; }
+      });
+
+      var ytitle = yaxis_title(this.chosen_series, this.chosen_stat,
+          this.chosen_scale, this.chosen_norm);
+      var xtitle = xaxis_title(this.chosen_series, this.chosen_stat,
+          this.chosen_scale, this.chosen_norm, this.chosen_start);
+      plot_series(ordered,
+          this.chosen_stat, this.chosen_scale, this.chosen_norm,
+          xtitle, ytitle,
+          this.chosen_select,
+          s => { this.chosen_select = s; });
+      this.visible_localities = extract.series.map(x => x[0]);
+    }, 100),
+    make_url: function(opts) {
+      return this.siteurl + this.$router.resolve(
+          {query: _.defaults(opts, this.$route.query)}).href;
+    },
+    print_page: function() {
+      var printwindow = window.open(this.make_url({bare:1,theme:'white'}));
+      printwindow.onafterprint = function() { printwindow.close() };
+      setTimeout(function() { printwindow.print(); }, 1200);
+    },
+    reset: function(e) {
+      // The reset button does two different things.  It resets
+      // to the default view (top-10 localities); but if there is
+      // a legend selection, it also cleans up the graph to focus
+      // on just the selected items.
+      if (!this.chosen_select) {
+        // If there is no legend selection, reset to default view
+        this.chosen_include = '';
+        this.chosen_select = '';
+        this.chosen_top = '10';
+        this.chosen_norm = 'none'; // The only 'non-advanced' ui to reset this.
+      } else {
+        // If there is a selection, erase the unselected items.
+        this.chosen_include = this.chosen_select;
+        this.chosen_select = '';
+        this.chosen_top = '0';
+      }
+      e.preventDefault();
+    },
+    add_locality: function() {
+      // When a new locality is added, there are a few different cases.
+      // 1. If it's the first added, and there are no prior selections,
+      //    it is added and made the only selection, so the user
+      //    can see the added line, but also 10 empty buttons for other
+      //    localities that can be clicked back in easily.
+      // 2. If there is already a selection, we make sure it's included
+      //    and added to the selection so the new line is visible.
+      // 3. If it's not the first added but no selection, we keep
+      //    everything visible by not changing the selection.
+      var app = this;
+      setTimeout(function() {
+        if (app.added_locality && !in_semilist(app.chosen_include,
+             app.added_locality)) {
+          if (!app.chosen_include || !!app.chosen_select) {
+            // Add a focus on this locality if it's the first
+            // added include or if there is already a selective focus
+            app.chosen_select = add_to_semilist(app.chosen_select,
+                app.added_locality);
+          }
+          // Make sure the searched locality is included.
+          app.chosen_include = add_to_semilist(app.chosen_include,
+              app.added_locality);
+          app.draw_chart();
+        }
+        app.added_locality = '';
+      }, 200);
+    },
+    configure_suggest: function() {
+      // kill Chrome's autofill.
+      $('input').attr('autocomplete', 'none');
+      this.$refs.suggest.controlScheme.select = [13, 9];
+      // Monkey-patch autocomplete, to select default on plain 'Enter' or 'Tab'.
+      // https://github.com/KazanExpress/vue-simple-suggest/blob
+      // /3999287560363908b62a48eaf50ad7e1e38dde0e/lib
+      // /vue-simple-suggest.vue#L334-L342
+      var oldSelect = this.$refs.suggest.select;
+      this.$refs.suggest.select = function(item) {
+        if (!item && this.suggestions.length > 0 && this.suggestions[0]) {
+          item = this.suggestions[0];
+        }
+        return oldSelect(item);
+      }
+      var oldOnShowList = this.$refs.suggest.onShowList;
+      this.$refs.suggest.onShowList = function(e) {
+        oldOnShowList(e);
+        if (this.listShown && e.key == 'Tab') { e.preventDefault(); }
+      };
+    }
+  }
+});
+
+//////////////////////////////////////////////////////////////////////
+// Autocomplete list.
+//////////////////////////////////////////////////////////////////////
+function get_all_localities(csse) {
+  if (csse == null) { return []; }
+  var ext = csse['confirmed'],
+    names = ext[0],
+    localities = _.clone(USA_STATES),
+    admin_i = fieldnum(names, 'admin'),
+    state_i = fieldnum(names, 'state'),
+    country_i = fieldnum(names, 'country');
+  _.forEach(ext.slice(1), r => {
+    if (r[country_i]) {
+      localities[norm_ctry(r[country_i])] = 1;
+      if (r[country_i] == 'US' && r[admin_i] && r[state_i]) {
+        localities[r[admin_i] + ', ' + USA_ABBREV[r[state_i]]] = 1;
+      }
+    }
+  });
+  return _.keys(localities);
+}
+
+//////////////////////////////////////////////////////////////////////
+// Utility functions.
+//////////////////////////////////////////////////////////////////////
+function url_property(name, default_value, nav) {
+  return {
+    get() { return this.$route.query[name] || default_value },
+    set(value) {
+      var o = _.defaults({ [name]: value }, this.$route.query);
+
+      // If it's the default value, get rid of it to clean up the URL
+      if (value == default_value) {
+        delete o[name];
+      }
+
+      this.$router[nav ? 'push' : 'replace']({query: o }).catch(err => {});
+    }
+  };
+}
+function score_series(stat, s) {
+  if (stat == 'deltas') {
+    var last = _.map(s.slice(-3), d => parseInt(d || 0) || 0);
+    return _.max(last) - _.min(last);
+  } else {
+    return _.sum(s.slice(-3)) / (1e-10 + s.slice(-3).length);
+  }
+}
+function in_semilist(semilist, item) {
+  return (semilist || '').split(';').indexOf(item) >= 0;
+}
+function add_to_semilist(semilist, item) {
+  if (!!item && !in_semilist(semilist, item)) {
+    semilist = (semilist ? semilist + ';' + item : item);
+  }
+  return semilist;
+}
+function parse_delta(s) {
+  var m = s.match(/^(?:deltas|daily|(\d*)day)$/);
+  if (!m) return null;
+  return parseInt(m[1]) || 1;
+}
+function parse_frac(s) {
+  var m = s.match(/^([\d\.]+)(?:\/([\d\.]+))?$/);
+  return m && parseFloat(m[1]) / parseFloat(m[2] || 1);
+}
+function svgstr(s) {
+  if (s.baseVal) { s = s.baseVal; }
+  return s;
+}
+function clear_hover_classes(element) {
+  $(element).removeClass($(element).prop('className').split(/\s+/).filter(
+      c => c.startsWith('ct-hover')).join(' '));
+}
+$('body').on('mouseleave mousedown',
+  '.ct-chart .ct-legend li, .ct-chart g.ct-series',
+  (e) => {
+  clear_hover_classes($(e.target).closest('.ct-chart'));
+});
+$('body').on('mouseenter',
+  '.ct-chart .ct-legend li, .ct-chart g.ct-series',
+  (e) => {
+  var $target = $(e.target);
+  if ($target.closest('g.ct-series').length) {
+    $target = $target.closest('g.ct-series'); // svg case.
+  }
+  // create the "ct-hover-on-#" class name corresponding to the target's
+  // ct-series-# class name.  svg elements have ct-series-[a-z] to convert.
+  var hc = svgstr($target.prop('className'))
+    .replace('ct-series-','ct-hover-on-').replace('ct-series ', '')
+    .replace(/([a-z])$/, x => x.charCodeAt(0) - 97);
+  var inactive = $(e.target).closest('.inactive').length > 0;
+  if (!inactive) {
+    $(e.target).closest('.ct-chart').addClass('ct-hover ' + hc);
+  }
+});
+
+//////////////////////////////////////////////////////////////////////
+// Initialization.
+// Load the csse data, and then tell the vue app to draw the chart.
+//////////////////////////////////////////////////////////////////////
+
+createCssStyles();
+
+load_feed_data = (data_feed_name == 'cds' ? load_cds_data : load_csse_data);
+load_feed_data().then(d => {
+  csse = d;
+  theapp.csse = d;
+  all_localities = get_all_localities(d);
+  theapp.available_localities = all_localities;
+  theapp.draw_chart();
+});
+
+$.getJSON('https://ipapi.co/json/', (geo) => {
+  if (geo.country == 'US' && USA_STATES.hasOwnProperty(geo.region_code)) {
+    theapp.local_us_state = geo.region_code;
+  }
+});
+
+</script>
+<script async>(u=>{u.searchParams.delete('fbclid');history.replaceState(null,'', u.href); })(new URL(location))</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-242212-3"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','UA-242212-3');</script>
+
+</html>
